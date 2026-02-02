@@ -21,11 +21,17 @@
    - QR 코드 표시
    - 실시간 접속자 수
    - 실시간 채팅 월 (애니메이션)
+   - **퀴즈**: 문제 + 타이머 표시
+   - **슬롯머신 추첨**: 화려한 슬롯 UI (번호 범위 / 접속 유저 닉네임 모드)
+   - **실시간 투표**: 막대그래프 애니메이션
 
 3. **호스트 관리 페이지** (`/room/[id]/admin`)
    - 실시간 접속자 관리
    - 메시지 삭제 및 차단
-   - 프로그램 제어 (채팅, 퀴즈, 추첨, 투표)
+   - **프로그램 제어**: 채팅 / 퀴즈 / 추첨 / 투표 전환 (전체 클라이언트 동시 전환)
+   - **퀴즈**: 문제 출제, 시작/종료, 랭킹
+   - **추첨**: 번호 범위 또는 닉네임 모드, 당첨자 결정
+   - **투표**: 동적 항목 수 설정, 시작/종료
 
 ## Supabase 데이터베이스 설정
 
@@ -87,7 +93,12 @@ CREATE TRIGGER update_rooms_updated_at BEFORE UPDATE ON rooms
 FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 ```
 
-### 2. Realtime 활성화
+### 2. 퀴즈·추첨·투표 테이블 (퀴즈/슬롯머신/투표 기능 사용 시)
+
+`supabase/migrations/001_quiz_raffle_poll.sql` 파일 내용을 SQL Editor에서 실행하세요.  
+또는 Supabase 대시보드 → SQL Editor에서 해당 파일의 SQL을 실행합니다.
+
+### 3. Realtime 활성화
 
 Supabase 대시보드에서:
 1. Database → Replication 메뉴로 이동
@@ -95,8 +106,13 @@ Supabase 대시보드에서:
    - `rooms`
    - `participants`
    - `messages`
+   - `quiz_sessions`
+   - `quiz_answers`
+   - `raffle_sessions`
+   - `poll_sessions`
+   - `poll_votes`
 
-### 3. Row Level Security (RLS) 설정
+### 4. Row Level Security (RLS) 설정
 
 현재는 모든 사용자가 읽기/쓰기가 가능하도록 설정되어 있습니다. 프로덕션 환경에서는 적절한 RLS 정책을 설정하세요.
 

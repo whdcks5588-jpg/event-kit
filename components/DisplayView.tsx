@@ -3,6 +3,10 @@
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import type { Room, Message } from "@/lib/types";
+import { useRoomProgram } from "@/hooks/useRoomProgram";
+import DisplayQuiz from "./display/DisplayQuiz";
+import DisplayRaffle from "./display/DisplayRaffle";
+import DisplayPoll from "./display/DisplayPoll";
 
 interface DisplayViewProps {
   room: Room;
@@ -17,8 +21,89 @@ export default function DisplayView({
   qrCodeUrl,
   participantCount,
 }: DisplayViewProps) {
+  const { room: liveRoom } = useRoomProgram(roomId);
+  const displayRoom = liveRoom ?? room;
+  const program = displayRoom?.current_program ?? "chat";
+
   const [messages, setMessages] = useState<Message[]>([]);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+
+  // 로고 전체화면 모드
+  if (displayRoom?.room_show_logo_only) {
+    return (
+      <div className="flex h-screen w-screen flex-col items-center justify-center bg-gray-900">
+        <div className="mb-8 text-6xl font-bold text-white">{displayRoom.title}</div>
+        {qrCodeUrl && (
+          <div className="rounded-2xl bg-white p-6 shadow-2xl">
+            <img src={qrCodeUrl} alt="QR" width={300} height={300} />
+            <p className="mt-4 text-center text-xl font-bold text-gray-900">
+              QR코드를 스캔하여 참가하세요!
+            </p>
+          </div>
+        )}
+        <div className="mt-12 text-2xl text-gray-400">접속자: {participantCount}명</div>
+      </div>
+    );
+  }
+
+  // 퀴즈/추첨/투표 시 해당 화면 전체 표시
+  if (program === "quiz") {
+    return (
+      <div className="relative h-screen w-screen overflow-hidden bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+        {qrCodeUrl && (
+          <div className="absolute left-4 top-4 z-10 rounded-lg bg-white p-2 shadow-2xl">
+            <img src={qrCodeUrl} alt="QR" width={120} height={120} className="rounded" />
+          </div>
+        )}
+        <div className="absolute left-1/2 top-8 z-10 -translate-x-1/2 transform">
+          <div className="rounded-full bg-blue-600/90 px-6 py-2 backdrop-blur-sm">
+            <span className="text-2xl font-bold text-white">접속자: {participantCount}명</span>
+          </div>
+        </div>
+        <div className="flex h-full items-center justify-center pt-24">
+          <DisplayQuiz roomId={roomId} />
+        </div>
+      </div>
+    );
+  }
+  if (program === "raffle") {
+    return (
+      <div className="relative h-screen w-screen overflow-hidden bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+        {qrCodeUrl && (
+          <div className="absolute left-4 top-4 z-10 rounded-lg bg-white p-2 shadow-2xl">
+            <img src={qrCodeUrl} alt="QR" width={120} height={120} className="rounded" />
+          </div>
+        )}
+        <div className="absolute left-1/2 top-8 z-10 -translate-x-1/2 transform">
+          <div className="rounded-full bg-blue-600/90 px-6 py-2 backdrop-blur-sm">
+            <span className="text-2xl font-bold text-white">접속자: {participantCount}명</span>
+          </div>
+        </div>
+        <div className="flex h-full items-center justify-center pt-24">
+          <DisplayRaffle roomId={roomId} />
+        </div>
+      </div>
+    );
+  }
+  if (program === "poll") {
+    return (
+      <div className="relative h-screen w-screen overflow-hidden bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
+        {qrCodeUrl && (
+          <div className="absolute left-4 top-4 z-10 rounded-lg bg-white p-2 shadow-2xl">
+            <img src={qrCodeUrl} alt="QR" width={120} height={120} className="rounded" />
+          </div>
+        )}
+        <div className="absolute left-1/2 top-8 z-10 -translate-x-1/2 transform">
+          <div className="rounded-full bg-blue-600/90 px-6 py-2 backdrop-blur-sm">
+            <span className="text-2xl font-bold text-white">접속자: {participantCount}명</span>
+          </div>
+        </div>
+        <div className="flex h-full items-center justify-center pt-24">
+          <DisplayPoll roomId={roomId} />
+        </div>
+      </div>
+    );
+  }
 
   useEffect(() => {
     loadMessages();

@@ -3,6 +3,10 @@
 import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import type { Participant, Message, Room } from "@/lib/types";
+import { useRoomProgram } from "@/hooks/useRoomProgram";
+import ParticipantQuiz from "./participant/ParticipantQuiz";
+import ParticipantRaffle from "./participant/ParticipantRaffle";
+import ParticipantPoll from "./participant/ParticipantPoll";
 
 interface ParticipantViewProps {
   room: Room;
@@ -15,10 +19,30 @@ export default function ParticipantView({
   participant,
   roomId,
 }: ParticipantViewProps) {
+  const { room: liveRoom } = useRoomProgram(roomId);
+  const displayRoom = liveRoom ?? room;
+  const program = displayRoom?.current_program ?? "chat";
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // 로고 전체화면 모드 (참가자 화면)
+  if (displayRoom?.room_show_logo_only) {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center bg-gray-900 px-6 text-center">
+        <div className="mb-6 text-3xl font-bold text-white">{displayRoom.title}</div>
+        <div className="rounded-xl bg-gray-800 p-6 shadow-xl border border-gray-700">
+          <p className="text-lg text-gray-300">
+            현재 로고 화면이 표시 중입니다.<br />
+            잠시만 기다려 주세요!
+          </p>
+        </div>
+        <div className="mt-8 text-sm text-gray-500">참가자: {participant.nickname}</div>
+      </div>
+    );
+  }
 
   useEffect(() => {
     loadMessages();
@@ -150,15 +174,55 @@ export default function ParticipantView({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }
 
+  // 퀴즈 / 추첨 / 투표 화면 (실시간 프로그램 전환)
+  if (program === "quiz") {
+    return (
+      <div className="flex h-screen flex-col bg-gray-900">
+        <header className="border-b border-gray-800 bg-gray-800 px-4 py-3">
+          <h1 className="text-lg font-semibold text-white">{displayRoom.title}</h1>
+          <p className="text-sm text-gray-400">퀴즈 · {participant.nickname}님</p>
+        </header>
+        <div className="flex-1 overflow-y-auto">
+          <ParticipantQuiz roomId={roomId} participant={participant} />
+        </div>
+      </div>
+    );
+  }
+  if (program === "raffle") {
+    return (
+      <div className="flex h-screen flex-col bg-gray-900">
+        <header className="border-b border-gray-800 bg-gray-800 px-4 py-3">
+          <h1 className="text-lg font-semibold text-white">{displayRoom.title}</h1>
+          <p className="text-sm text-gray-400">추첨 · {participant.nickname}님</p>
+        </header>
+        <div className="flex-1 overflow-y-auto">
+          <ParticipantRaffle roomId={roomId} />
+        </div>
+      </div>
+    );
+  }
+  if (program === "poll") {
+    return (
+      <div className="flex h-screen flex-col bg-gray-900">
+        <header className="border-b border-gray-800 bg-gray-800 px-4 py-3">
+          <h1 className="text-lg font-semibold text-white">{displayRoom.title}</h1>
+          <p className="text-sm text-gray-400">투표 · {participant.nickname}님</p>
+        </header>
+        <div className="flex-1 overflow-y-auto">
+          <ParticipantPoll roomId={roomId} participant={participant} />
+        </div>
+      </div>
+    );
+  }
+
+  // 채팅
   return (
     <div className="flex h-screen flex-col bg-gray-900">
-      {/* 헤더 */}
       <header className="border-b border-gray-800 bg-gray-800 px-4 py-3">
-        <h1 className="text-lg font-semibold text-white">{room.title}</h1>
+        <h1 className="text-lg font-semibold text-white">{displayRoom.title}</h1>
         <p className="text-sm text-gray-400">안녕하세요, {participant.nickname}님</p>
       </header>
 
-      {/* 메시지 영역 */}
       <div className="flex-1 overflow-y-auto px-4 py-4">
         <div className="space-y-3">
           {messages.map((message) => (
@@ -196,7 +260,6 @@ export default function ParticipantView({
         </div>
       </div>
 
-      {/* 입력 영역 */}
       <form
         onSubmit={handleSendMessage}
         className="border-t border-gray-800 bg-gray-800 px-4 py-3"
