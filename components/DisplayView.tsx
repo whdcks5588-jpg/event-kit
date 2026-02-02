@@ -28,6 +28,65 @@ export default function DisplayView({
   const [messages, setMessages] = useState<Message[]>([]);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    loadMessages();
+
+    // 메시지 실시간 구독
+    const messagesChannel = supabase
+      .channel(`display-messages:${roomId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "messages",
+          filter: `room_id=eq.${roomId}`,
+        },
+        (payload) => {
+          console.log("Display message event:", payload.eventType);
+          if (payload.eventType === "INSERT") {
+            const message = payload.new as Message;
+            if (!message.is_blocked) {
+              setMessages((prev) => {
+                // 중복 체크
+                if (prev.some((m) => m.id === message.id)) {
+                  return prev;
+                }
+                return [message, ...prev].slice(0, 100);
+              });
+            }
+          } else if (payload.eventType === "UPDATE") {
+            const message = payload.new as Message;
+            if (message.is_blocked) {
+              setMessages((prev) => prev.filter((m) => m.id !== message.id));
+            } else {
+              setMessages((prev) => {
+                if (prev.some((m) => m.id === message.id)) {
+                  return prev.map((m) => (m.id === message.id ? message : m));
+                }
+                return [message, ...prev].slice(0, 100);
+              });
+            }
+          } else if (payload.eventType === "DELETE") {
+            setMessages((prev) =>
+              prev.filter((m) => m.id !== payload.old.id)
+            );
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log("Display messages channel status:", status);
+      });
+
+    return () => {
+      supabase.removeChannel(messagesChannel);
+    };
+  }, [roomId]);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
   // 로고 전체화면 모드
   if (displayRoom?.room_show_logo_only) {
     return (
@@ -104,65 +163,6 @@ export default function DisplayView({
       </div>
     );
   }
-
-  useEffect(() => {
-    loadMessages();
-
-    // 메시지 실시간 구독
-    const messagesChannel = supabase
-      .channel(`display-messages:${roomId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "messages",
-          filter: `room_id=eq.${roomId}`,
-        },
-        (payload) => {
-          console.log("Display message event:", payload.eventType);
-          if (payload.eventType === "INSERT") {
-            const message = payload.new as Message;
-            if (!message.is_blocked) {
-              setMessages((prev) => {
-                // 중복 체크
-                if (prev.some((m) => m.id === message.id)) {
-                  return prev;
-                }
-                return [message, ...prev].slice(0, 100);
-              });
-            }
-          } else if (payload.eventType === "UPDATE") {
-            const message = payload.new as Message;
-            if (message.is_blocked) {
-              setMessages((prev) => prev.filter((m) => m.id !== message.id));
-            } else {
-              setMessages((prev) => {
-                if (prev.some((m) => m.id === message.id)) {
-                  return prev.map((m) => (m.id === message.id ? message : m));
-                }
-                return [message, ...prev].slice(0, 100);
-              });
-            }
-          } else if (payload.eventType === "DELETE") {
-            setMessages((prev) =>
-              prev.filter((m) => m.id !== payload.old.id)
-            );
-          }
-        }
-      )
-      .subscribe((status) => {
-        console.log("Display messages channel status:", status);
-      });
-
-    return () => {
-      supabase.removeChannel(messagesChannel);
-    };
-  }, [roomId]);
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
 
   async function loadMessages() {
     const { data, error } = await supabase

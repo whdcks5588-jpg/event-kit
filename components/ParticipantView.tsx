@@ -28,22 +28,6 @@ export default function ParticipantView({
   const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // 로고 전체화면 모드 (참가자 화면)
-  if (displayRoom?.room_show_logo_only) {
-    return (
-      <div className="flex h-screen flex-col items-center justify-center bg-gray-900 px-6 text-center">
-        <div className="mb-6 text-3xl font-bold text-white">{displayRoom.title}</div>
-        <div className="rounded-xl bg-gray-800 p-6 shadow-xl border border-gray-700">
-          <p className="text-lg text-gray-300">
-            현재 로고 화면이 표시 중입니다.<br />
-            잠시만 기다려 주세요!
-          </p>
-        </div>
-        <div className="mt-8 text-sm text-gray-500">참가자: {participant.nickname}</div>
-      </div>
-    );
-  }
-
   useEffect(() => {
     loadMessages();
 
@@ -126,6 +110,22 @@ export default function ParticipantView({
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // 로고 전체화면 모드 (참가자 화면)
+  if (displayRoom?.room_show_logo_only) {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center bg-gray-900 px-6 text-center">
+        <div className="mb-6 text-3xl font-bold text-white">{displayRoom.title}</div>
+        <div className="rounded-xl bg-gray-800 p-6 shadow-xl border border-gray-700">
+          <p className="text-lg text-gray-300">
+            현재 로고 화면이 표시 중입니다.<br />
+            잠시만 기다려 주세요!
+          </p>
+        </div>
+        <div className="mt-8 text-sm text-gray-500">참가자: {participant.nickname}</div>
+      </div>
+    );
+  }
 
   async function loadMessages() {
     const { data, error } = await supabase
