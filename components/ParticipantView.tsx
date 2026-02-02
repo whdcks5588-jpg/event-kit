@@ -26,7 +26,11 @@ export default function ParticipantView({
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [nickname, setNickname] = useState(participant.nickname);
+  const [isEditingNickname, setIsEditingNickname] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const prevProgramRef = useRef(program);
 
   useEffect(() => {
     loadMessages();
@@ -108,24 +112,19 @@ export default function ParticipantView({
   }, [roomId, participant.id]);
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    if (program === "chat") {
+      const isProgramChanged = prevProgramRef.current !== "chat";
+      scrollToBottom(isProgramChanged ? "auto" : "smooth");
+    }
+    prevProgramRef.current = program;
+  }, [messages, program]);
 
-  // 로고 전체화면 모드 (참가자 화면)
-  if (displayRoom?.room_show_logo_only) {
-    return (
-      <div className="flex h-screen flex-col items-center justify-center bg-gray-900 px-6 text-center">
-        <div className="mb-6 text-3xl font-bold text-white">{displayRoom.title}</div>
-        <div className="rounded-xl bg-gray-800 p-6 shadow-xl border border-gray-700">
-          <p className="text-lg text-gray-300">
-            현재 로고 화면이 표시 중입니다.<br />
-            잠시만 기다려 주세요!
-          </p>
-        </div>
-        <div className="mt-8 text-sm text-gray-500">참가자: {participant.nickname}</div>
-      </div>
-    );
-  }
+  // 전송 완료 후 입력창 포커스 복구
+  useEffect(() => {
+    if (!isSending && program === "chat" && !isEditingNickname) {
+      inputRef.current?.focus();
+    }
+  }, [isSending, program, isEditingNickname]);
 
   async function loadMessages() {
     const { data, error } = await supabase
@@ -144,6 +143,24 @@ export default function ParticipantView({
     setMessages((data as Message[]) || []);
   }
 
+  async function handleUpdateNickname() {
+    if (!nickname.trim() || nickname === participant.nickname) {
+      setIsEditingNickname(false);
+      return;
+    }
+
+    const { error } = await supabase
+      .from("participants")
+      .update({ nickname: nickname.trim() })
+      .eq("id", participant.id);
+
+    if (error) {
+      alert("닉네임 수정에 실패했습니다.");
+      setNickname(participant.nickname);
+    }
+    setIsEditingNickname(false);
+  }
+
   async function handleSendMessage(e: React.FormEvent) {
     e.preventDefault();
     if (!newMessage.trim() || isSending) return;
@@ -154,7 +171,7 @@ export default function ParticipantView({
     const { error } = await supabase.from("messages").insert({
       room_id: roomId,
       participant_id: participant.id,
-      nickname: participant.nickname,
+      nickname: nickname, // 현재 상태의 닉네임 사용
       content,
       is_blocked: false,
     });
@@ -170,20 +187,90 @@ export default function ParticipantView({
     setNewMessage("");
   }
 
-  function scrollToBottom() {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  const CommonHeader = () => (
+    <header className="border-b border-gray-800 bg-gray-800 px-4 py-4">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex-1 min-w-0">
+          <p className="text-sm text-gray-300 leading-tight">
+            안녕하세요 <span className="font-bold text-white">{nickname}</span>님
+            <br />
+            <span className="font-bold text-blue-400">{displayRoom.title}</span>에 오신걸 환영합니다
+          </p>
+        </div>
+        <button
+          onClick={() => setIsEditingNickname(true)}
+          className="shrink-0 rounded-lg bg-gray-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-gray-600 transition-colors shadow-sm"
+        >
+          수정
+        </button>
+      </div>
+
+      {/* 닉네임 수정 모달 */}
+      {isEditingNickname && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-2xl bg-gray-800 p-6 shadow-2xl border border-gray-700">
+            <h2 className="mb-4 text-xl font-bold text-white">닉네임 수정</h2>
+            <input
+              type="text"
+              value={nickname}
+              onChange={(e) => setNickname(e.target.value)}
+              className="mb-4 w-full rounded-xl bg-gray-900 border border-gray-700 px-4 py-3 text-white focus:border-blue-500 focus:outline-none"
+              autoFocus
+              onKeyDown={(e) => e.key === "Enter" && handleUpdateNickname()}
+            />
+            <div className="flex gap-2">
+              <button
+                onClick={() => setIsEditingNickname(false)}
+                className="flex-1 rounded-xl bg-gray-700 py-3 font-semibold text-white hover:bg-gray-600 transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleUpdateNickname}
+                className="flex-1 rounded-xl bg-blue-600 py-3 font-semibold text-white hover:bg-blue-700 transition-colors"
+              >
+                저장
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </header>
+  );
+
+  function scrollToBottom(behavior: ScrollBehavior = "smooth") {
+    messagesEndRef.current?.scrollIntoView({ behavior });
+  }
+
+  // 로고 전체화면 모드 (참가자 화면)
+  if (displayRoom?.room_show_logo_only) {
+    return (
+      <div className="flex h-screen flex-col bg-gray-900">
+        <CommonHeader />
+        <div className="flex flex-1 items-center justify-center p-4">
+          {displayRoom.logo_url ? (
+            <img
+              src={displayRoom.logo_url}
+              alt="Logo"
+              className="h-full w-full object-contain"
+            />
+          ) : (
+            <div className="text-4xl font-bold text-white text-center">
+              {displayRoom.title}
+            </div>
+          )}
+        </div>
+      </div>
+    );
   }
 
   // 퀴즈 / 추첨 / 투표 화면 (실시간 프로그램 전환)
   if (program === "quiz") {
     return (
       <div className="flex h-screen flex-col bg-gray-900">
-        <header className="border-b border-gray-800 bg-gray-800 px-4 py-3">
-          <h1 className="text-lg font-semibold text-white">{displayRoom.title}</h1>
-          <p className="text-sm text-gray-400">퀴즈 · {participant.nickname}님</p>
-        </header>
+        <CommonHeader />
         <div className="flex-1 overflow-y-auto">
-          <ParticipantQuiz roomId={roomId} participant={participant} />
+          <ParticipantQuiz roomId={roomId} participant={participant} room={displayRoom} />
         </div>
       </div>
     );
@@ -191,10 +278,7 @@ export default function ParticipantView({
   if (program === "raffle") {
     return (
       <div className="flex h-screen flex-col bg-gray-900">
-        <header className="border-b border-gray-800 bg-gray-800 px-4 py-3">
-          <h1 className="text-lg font-semibold text-white">{displayRoom.title}</h1>
-          <p className="text-sm text-gray-400">추첨 · {participant.nickname}님</p>
-        </header>
+        <CommonHeader />
         <div className="flex-1 overflow-y-auto">
           <ParticipantRaffle roomId={roomId} />
         </div>
@@ -204,10 +288,7 @@ export default function ParticipantView({
   if (program === "poll") {
     return (
       <div className="flex h-screen flex-col bg-gray-900">
-        <header className="border-b border-gray-800 bg-gray-800 px-4 py-3">
-          <h1 className="text-lg font-semibold text-white">{displayRoom.title}</h1>
-          <p className="text-sm text-gray-400">투표 · {participant.nickname}님</p>
-        </header>
+        <CommonHeader />
         <div className="flex-1 overflow-y-auto">
           <ParticipantPoll roomId={roomId} participant={participant} />
         </div>
@@ -218,10 +299,7 @@ export default function ParticipantView({
   // 채팅
   return (
     <div className="flex h-screen flex-col bg-gray-900">
-      <header className="border-b border-gray-800 bg-gray-800 px-4 py-3">
-        <h1 className="text-lg font-semibold text-white">{displayRoom.title}</h1>
-        <p className="text-sm text-gray-400">안녕하세요, {participant.nickname}님</p>
-      </header>
+      <CommonHeader />
 
       <div className="flex-1 overflow-y-auto px-4 py-4">
         <div className="space-y-3">
@@ -266,6 +344,7 @@ export default function ParticipantView({
       >
         <div className="flex gap-2">
           <input
+            ref={inputRef}
             type="text"
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}

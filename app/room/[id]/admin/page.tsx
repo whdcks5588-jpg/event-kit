@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { auth } from "@/lib/auth";
 import type { Room, Participant, Message } from "@/lib/types";
 import AdminView from "@/components/AdminView";
 
 export default function AdminPage() {
   const params = useParams();
+  const router = useRouter();
   const roomId = params.id as string;
 
   const [room, setRoom] = useState<Room | null>(null);
@@ -16,7 +18,13 @@ export default function AdminPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    loadData();
+    const user = auth.getUser();
+    if (!user) {
+      router.push("/");
+      return;
+    }
+
+    loadData(user);
 
     // 참가자 실시간 구독
     const participantsChannel = supabase
@@ -132,9 +140,12 @@ export default function AdminPage() {
       supabase.removeChannel(messagesChannel);
       supabase.removeChannel(roomChannel);
     };
-  }, [roomId]);
+  }, [roomId, router]);
 
-  async function loadData() {
+  async function loadData(currentUser?: any) {
+    const user = currentUser || auth.getUser();
+    if (!user) return;
+
     const [roomRes, participantsRes, messagesRes] = await Promise.all([
       supabase.from("rooms").select("*").eq("id", roomId).single(),
       supabase
@@ -150,7 +161,16 @@ export default function AdminPage() {
         .limit(100),
     ]);
 
-    if (roomRes.data) setRoom(roomRes.data as Room);
+    if (roomRes.data) {
+      const roomData = roomRes.data as Room;
+      // 관리자거나 방 생성자만 접근 가능
+      if (user.role !== "admin" && roomData.created_by !== user.id) {
+        alert("이 방에 대한 관리 권한이 없습니다.");
+        router.push("/dashboard");
+        return;
+      }
+      setRoom(roomData);
+    }
     if (participantsRes.data)
       setParticipants(participantsRes.data as Participant[]);
     if (messagesRes.data) setMessages(messagesRes.data as Message[]);

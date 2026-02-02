@@ -17,11 +17,25 @@ export function useActiveQuiz(roomId: string | undefined) {
         .from("quiz_sessions")
         .select("*")
         .eq("room_id", roomId)
-        .in("status", ["waiting", "active", "ended"])
-        .order("created_at", { ascending: false })
+        .eq("status", "active")
+        .order("updated_at", { ascending: false })
         .limit(1)
         .maybeSingle();
-      if (data) setSession(data as QuizSession);
+      
+      // 만약 active가 없으면 가장 최근의 ended라도 가져옴 (결과 화면용)
+      if (!data) {
+        const { data: lastEnded } = await supabase
+          .from("quiz_sessions")
+          .select("*")
+          .eq("room_id", roomId)
+          .eq("status", "ended")
+          .order("updated_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (lastEnded) setSession(lastEnded as QuizSession);
+      } else {
+        setSession(data as QuizSession);
+      }
     }
 
     load();
@@ -37,7 +51,10 @@ export function useActiveQuiz(roomId: string | undefined) {
           filter: `room_id=eq.${roomId}`,
         },
         (payload) => {
-          if (payload.new) setSession(payload.new as QuizSession);
+          const newSession = payload.new as QuizSession;
+          if (newSession && (newSession.status === "active" || newSession.status === "ended")) {
+            setSession(newSession);
+          }
         }
       )
       .subscribe();
@@ -90,32 +107,46 @@ export function useActiveQuiz(roomId: string | undefined) {
     };
   }, [session?.id]);
 
-  // 랭킹: room 내 모든 퀴즈 세션에서 정답 수 집계 (같은 room_id의 quiz_sessions + quiz_answers)
+  // 랭킹: 같은 프로젝트 내의 모든 퀴즈 세션에서 점수(배점) 합산
   useEffect(() => {
-    if (!roomId || !session) return;
+    if (!roomId || !session?.project_id) return;
 
     async function loadRanking() {
+      // 1. 해당 프로젝트의 모든 퀴즈 세션 가져오기
       const { data: sessions } = await supabase
         .from("quiz_sessions")
-        .select("id")
-        .eq("room_id", roomId)
+        .select("id, points")
+        .eq("project_id", session.project_id)
         .eq("status", "ended");
+
       if (!sessions?.length) {
         setRanking([]);
         return;
       }
+
+      const pointsMap = sessions.reduce((acc, s) => {
+        acc[s.id] = s.points || 0;
+        return acc;
+      }, {} as Record<string, number>);
+
       const ids = sessions.map((s) => s.id);
+
+      // 2. 정답인 답안들 가져오기
       const { data: answersData } = await supabase
         .from("quiz_answers")
-        .select("nickname, is_correct")
+        .select("nickname, session_id, is_correct")
         .in("session_id", ids)
         .eq("is_correct", true);
-      const countByNick: Record<string, number> = {};
-      (answersData || []).forEach((a: { nickname: string }) => {
-        countByNick[a.nickname] = (countByNick[a.nickname] || 0) + 1;
+
+      // 3. 닉네임별로 배점 합산
+      const scoreByNick: Record<string, number> = {};
+      (answersData || []).forEach((a) => {
+        const p = pointsMap[a.session_id] || 0;
+        scoreByNick[a.nickname] = (scoreByNick[a.nickname] || 0) + p;
       });
+
       setRanking(
-        Object.entries(countByNick)
+        Object.entries(scoreByNick)
           .map(([nickname, correct]) => ({ nickname, correct }))
           .sort((a, b) => b.correct - a.correct)
           .slice(0, 10)
@@ -123,7 +154,7 @@ export function useActiveQuiz(roomId: string | undefined) {
     }
 
     loadRanking();
-  }, [roomId, session?.id, answers]);
+  }, [roomId, session?.project_id, session?.id, answers]);
 
   return { session, answers, ranking };
 }

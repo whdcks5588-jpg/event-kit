@@ -27,6 +27,8 @@ export default function DisplayView({
 
   const [messages, setMessages] = useState<Message[]>([]);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const prevProgramRef = useRef(program);
 
   useEffect(() => {
     loadMessages();
@@ -52,7 +54,7 @@ export default function DisplayView({
                 if (prev.some((m) => m.id === message.id)) {
                   return prev;
                 }
-                return [message, ...prev].slice(0, 100);
+                return [...prev, message].slice(-100);
               });
             }
           } else if (payload.eventType === "UPDATE") {
@@ -64,7 +66,7 @@ export default function DisplayView({
                 if (prev.some((m) => m.id === message.id)) {
                   return prev.map((m) => (m.id === message.id ? message : m));
                 }
-                return [message, ...prev].slice(0, 100);
+                return [...prev, message].slice(-100);
               });
             }
           } else if (payload.eventType === "DELETE") {
@@ -84,23 +86,43 @@ export default function DisplayView({
   }, [roomId]);
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    if (program === "chat") {
+      const isProgramChanged = prevProgramRef.current !== "chat";
+      scrollToBottom(isProgramChanged ? "auto" : "smooth");
+    }
+    prevProgramRef.current = program;
+  }, [messages, program]);
 
-  // 로고 전체화면 모드
+  if (displayRoom?.room_show_qr_only) {
+    return (
+      <div className="flex h-screen flex-col items-center justify-center bg-white p-12">
+        <div className="mb-8 text-center">
+          <h1 className="mb-4 text-4xl font-bold text-gray-900">
+            {displayRoom.title}
+          </h1>
+          <p className="text-2xl text-gray-600">QR 코드를 스캔하여 참여하세요!</p>
+        </div>
+        <div className="relative aspect-square w-full max-w-[60vh] overflow-hidden rounded-3xl border-[12px] border-gray-100 bg-white p-8 shadow-2xl">
+          <img src={qrCodeUrl} alt="QR Code" className="h-full w-full" />
+        </div>
+      </div>
+    );
+  }
+
   if (displayRoom?.room_show_logo_only) {
     return (
-      <div className="flex h-screen w-screen flex-col items-center justify-center bg-gray-900">
-        <div className="mb-8 text-6xl font-bold text-white">{displayRoom.title}</div>
-        {qrCodeUrl && (
-          <div className="rounded-2xl bg-white p-6 shadow-2xl">
-            <img src={qrCodeUrl} alt="QR" width={300} height={300} />
-            <p className="mt-4 text-center text-xl font-bold text-gray-900">
-              QR코드를 스캔하여 참가하세요!
-            </p>
+      <div className="flex h-screen items-center justify-center bg-gray-900 p-8">
+        {displayRoom.logo_url ? (
+          <img
+            src={displayRoom.logo_url}
+            alt="Logo"
+            className="h-full w-full object-contain"
+          />
+        ) : (
+          <div className="text-8xl font-bold text-white text-center">
+            {displayRoom.title}
           </div>
         )}
-        <div className="mt-12 text-2xl text-gray-400">접속자: {participantCount}명</div>
       </div>
     );
   }
@@ -109,18 +131,8 @@ export default function DisplayView({
   if (program === "quiz") {
     return (
       <div className="relative h-screen w-screen overflow-hidden bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-        {qrCodeUrl && (
-          <div className="absolute left-4 top-4 z-10 rounded-lg bg-white p-2 shadow-2xl">
-            <img src={qrCodeUrl} alt="QR" width={120} height={120} className="rounded" />
-          </div>
-        )}
-        <div className="absolute left-1/2 top-8 z-10 -translate-x-1/2 transform">
-          <div className="rounded-full bg-blue-600/90 px-6 py-2 backdrop-blur-sm">
-            <span className="text-2xl font-bold text-white">접속자: {participantCount}명</span>
-          </div>
-        </div>
-        <div className="flex h-full items-center justify-center pt-24">
-          <DisplayQuiz roomId={roomId} />
+        <div className="flex h-full items-center justify-center">
+          <DisplayQuiz roomId={roomId} room={displayRoom} />
         </div>
       </div>
     );
@@ -128,14 +140,9 @@ export default function DisplayView({
   if (program === "raffle") {
     return (
       <div className="relative h-screen w-screen overflow-hidden bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-        {qrCodeUrl && (
-          <div className="absolute left-4 top-4 z-10 rounded-lg bg-white p-2 shadow-2xl">
-            <img src={qrCodeUrl} alt="QR" width={120} height={120} className="rounded" />
-          </div>
-        )}
-        <div className="absolute left-1/2 top-8 z-10 -translate-x-1/2 transform">
-          <div className="rounded-full bg-blue-600/90 px-6 py-2 backdrop-blur-sm">
-            <span className="text-2xl font-bold text-white">접속자: {participantCount}명</span>
+        <div className="absolute right-8 top-8 z-10">
+          <div className="rounded-full bg-blue-600/90 px-4 py-1 backdrop-blur-sm">
+            <span className="text-lg font-bold text-white">접속자: {participantCount}명</span>
           </div>
         </div>
         <div className="flex h-full items-center justify-center pt-24">
@@ -147,14 +154,9 @@ export default function DisplayView({
   if (program === "poll") {
     return (
       <div className="relative h-screen w-screen overflow-hidden bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-        {qrCodeUrl && (
-          <div className="absolute left-4 top-4 z-10 rounded-lg bg-white p-2 shadow-2xl">
-            <img src={qrCodeUrl} alt="QR" width={120} height={120} className="rounded" />
-          </div>
-        )}
-        <div className="absolute left-1/2 top-8 z-10 -translate-x-1/2 transform">
-          <div className="rounded-full bg-blue-600/90 px-6 py-2 backdrop-blur-sm">
-            <span className="text-2xl font-bold text-white">접속자: {participantCount}명</span>
+        <div className="absolute right-8 top-8 z-10">
+          <div className="rounded-full bg-blue-600/90 px-4 py-1 backdrop-blur-sm">
+            <span className="text-lg font-bold text-white">접속자: {participantCount}명</span>
           </div>
         </div>
         <div className="flex h-full items-center justify-center pt-24">
@@ -170,7 +172,7 @@ export default function DisplayView({
       .select("*")
       .eq("room_id", roomId)
       .eq("is_blocked", false)
-      .order("created_at", { ascending: false })
+      .order("created_at", { ascending: true })
       .limit(100);
 
     if (error) {
@@ -182,89 +184,56 @@ export default function DisplayView({
   }
 
 
-  function scrollToBottom() {
-    if (messagesContainerRef.current) {
-      messagesContainerRef.current.scrollTop =
-        messagesContainerRef.current.scrollHeight;
-    }
+  function scrollToBottom(behavior: ScrollBehavior = "smooth") {
+    messagesEndRef.current?.scrollIntoView({ behavior });
   }
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
-      {/* QR 코드 (왼쪽 상단 고정) */}
-      {qrCodeUrl && (
-        <div className="absolute left-4 top-4 z-10 rounded-lg bg-white p-2 shadow-2xl">
+    <div className="relative flex h-screen flex-col overflow-hidden bg-gray-900">
+      {/* Top Header/Logo */}
+      <div className="relative z-10 flex flex-col items-center pt-12 pb-8">
+        {displayRoom.logo_url ? (
           <img
-            src={qrCodeUrl}
-            alt="QR Code"
-            width={120}
-            height={120}
-            className="rounded"
+            src={displayRoom.logo_url}
+            alt="Event Logo"
+            className="h-24 object-contain"
           />
-        </div>
-      )}
+        ) : (
+          <h1 className="text-5xl font-bold text-white tracking-tight">
+            {displayRoom.title}
+          </h1>
+        )}
+      </div>
 
-      {/* 접속자 수 (중앙 상단) */}
-      <div className="absolute left-1/2 top-8 z-10 -translate-x-1/2 transform">
-        <div className="rounded-full bg-blue-600/90 px-6 py-2 backdrop-blur-sm">
-          <span className="text-2xl font-bold text-white">
+      {/* Participant Count (Top Right) */}
+      <div className="absolute right-8 top-8 z-20">
+        <div className="rounded-full bg-blue-600/90 px-5 py-2 backdrop-blur-md shadow-lg border border-blue-400/30">
+          <span className="text-xl font-bold text-white">
             접속자: {participantCount}명
           </span>
         </div>
       </div>
 
-      {/* 실시간 채팅 월 */}
-      <div
-        ref={messagesContainerRef}
-        className="flex h-full flex-col justify-end overflow-y-auto px-8 pb-8 pt-24"
-      >
-        <div className="space-y-4">
-          {messages.length === 0 ? (
-            <div className="text-center text-gray-500">
-              아직 메시지가 없습니다.
+      {/* Chat Area (Centered, Below Logo) */}
+      <div className="flex-1 flex flex-col items-center min-h-0">
+        <div className="w-full max-w-4xl px-8 flex flex-col gap-4 overflow-y-auto py-4 no-scrollbar">
+          {messages.map((message) => (
+            <div
+              key={message.id}
+              className="flex flex-col items-center animate-in fade-in slide-in-from-bottom-4 duration-500"
+            >
+              <div className="max-w-[80%] rounded-2xl bg-white/10 px-8 py-4 backdrop-blur-md border border-white/10 shadow-xl">
+                <div className="mb-1 text-center text-sm font-bold text-blue-400">
+                  {message.nickname}
+                </div>
+                <div className="text-center text-2xl font-medium text-white break-all">
+                  {message.content}
+                </div>
+              </div>
             </div>
-          ) : (
-            messages.map((message) => (
-              <MessageBubble key={message.id} message={message} />
-            ))
-          )}
+          ))}
+          <div ref={messagesEndRef} />
         </div>
-      </div>
-    </div>
-  );
-}
-
-function MessageBubble({ message }: { message: Message }) {
-  const [isVisible, setIsVisible] = useState(false);
-  const bubbleRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    // 애니메이션 트리거
-    setTimeout(() => {
-      setIsVisible(true);
-    }, 10);
-  }, []);
-
-  return (
-    <div
-      ref={bubbleRef}
-      className={`transform transition-all duration-700 ease-out ${
-        isVisible
-          ? "translate-y-0 opacity-100 scale-100"
-          : "translate-y-8 opacity-0 scale-95"
-      }`}
-    >
-      <div className="inline-block max-w-2xl rounded-2xl bg-white/10 px-6 py-4 backdrop-blur-md shadow-lg border border-white/5">
-        <div className="mb-1 flex items-center gap-2">
-          <span className="font-semibold text-blue-400">{message.nickname}</span>
-          <span className="text-xs text-gray-400">
-            {new Date(message.created_at).toLocaleTimeString("ko-KR", {
-              hour: "2-digit",
-              minute: "2-digit",
-            })}
-          </span>
-        </div>
-        <p className="text-lg text-white leading-relaxed">{message.content}</p>
       </div>
     </div>
   );

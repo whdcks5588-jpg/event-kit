@@ -105,6 +105,8 @@ export type Database = {
           status: string
           title: string
           updated_at: string
+          created_by: string | null
+          created_by_username: string | null
         }
         Insert: {
           created_at?: string
@@ -113,6 +115,8 @@ export type Database = {
           status?: string
           title: string
           updated_at?: string
+          created_by?: string | null
+          created_by_username?: string | null
         }
         Update: {
           created_at?: string
@@ -121,6 +125,43 @@ export type Database = {
           status?: string
           title?: string
           updated_at?: string
+          created_by?: string | null
+          created_by_username?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rooms_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      users: {
+        Row: {
+          id: string
+          username: string
+          password: string
+          role: string
+          memo: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          username: string
+          password: string
+          role?: string
+          memo?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          username?: string
+          password?: string
+          role?: string
+          memo?: string | null
+          created_at?: string
         }
         Relationships: []
       }

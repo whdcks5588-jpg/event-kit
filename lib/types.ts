@@ -3,14 +3,23 @@
 export type RoomStatus = "waiting" | "active";
 export type ProgramType = "chat" | "quiz" | "raffle" | "poll";
 
+export type QuizPhase = "waiting" | "question" | "grading" | "reveal" | "ranking" | "ended";
+
 export interface Room {
   id: string;
   title: string;
   status: RoomStatus;
   current_program: ProgramType | null;
   room_show_logo_only: boolean;
+  room_show_qr_only: boolean;
+  logo_url: string | null;
+  quiz_project_id: string | null;
+  quiz_phase: QuizPhase;
+  quiz_current_index: number;
   created_at: string;
   updated_at: string;
+  created_by: string | null;
+  created_by_username: string | null;
 }
 
 export interface Participant {
@@ -37,15 +46,24 @@ export interface Message {
 export type QuizStatus = "waiting" | "active" | "ended";
 export type QuizQuestionType = "objective" | "subjective"; // 객관식 | 주관식(확장용)
 
-export interface QuizSession {
+export interface QuizProject {
   id: string;
   room_id: string;
   title: string;
+  created_at: string;
+}
+
+export interface QuizSession {
+  id: string;
+  room_id: string;
+  project_id: string | null;
+  title: string;
   question: string;
-  options: string[]; // 객관식 선택지 (주관식일 땐 빈 배열 가능)
+  options: string[]; // 객관식 선택지
   question_type: QuizQuestionType;
-  correct_answer: number | null; // 객관식: 옵션 인덱스 (0-based), 주관식: null
-  time_limit_seconds: number;
+  correct_answer: number | null; // 객관식: 옵션 인덱스 (0-based)
+  points: number;
+  order_index: number;
   status: QuizStatus;
   image_url: string | null;
   started_at: string | null;

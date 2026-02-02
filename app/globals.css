@@ -10,6 +10,14 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  
+  --animate-hourglass: hourglass-flow 2s infinite ease-in-out;
+  @keyframes hourglass-flow {
+    0% { transform: rotate(0deg); }
+    40% { transform: rotate(0deg); }
+    60% { transform: rotate(180deg); }
+    100% { transform: rotate(180deg); }
+  }
 }
 
 @media (prefers-color-scheme: dark) {
