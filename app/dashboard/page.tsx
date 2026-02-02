@@ -51,7 +51,7 @@ export default function Dashboard() {
     if (error) {
       console.error("Load temp users error:", error);
     } else {
-      setTempUsers(data || []);
+      setTempUsers((data || []) as User[]);
     }
   }
 
