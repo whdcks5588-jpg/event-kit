@@ -9,12 +9,13 @@ export function useActiveRaffle(roomId: string | undefined) {
 
   useEffect(() => {
     if (!roomId) return;
+    const activeRoomId = roomId;
 
     async function load() {
       const { data } = await supabase
         .from("raffle_sessions")
         .select("*")
-        .eq("room_id", roomId)
+        .eq("room_id", activeRoomId)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -24,14 +25,14 @@ export function useActiveRaffle(roomId: string | undefined) {
     load();
 
     const channel = supabase
-      .channel(`raffle:${roomId}`)
+      .channel(`raffle:${activeRoomId}`)
       .on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
           table: "raffle_sessions",
-          filter: `room_id=eq.${roomId}`,
+          filter: `room_id=eq.${activeRoomId}`,
         },
         (payload) => {
           if (payload.new) setSession(payload.new as RaffleSession);

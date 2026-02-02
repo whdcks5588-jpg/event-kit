@@ -11,12 +11,13 @@ export function useActiveQuiz(roomId: string | undefined) {
 
   useEffect(() => {
     if (!roomId) return;
+    const activeRoomId = roomId;
 
     async function load() {
       const { data } = await supabase
         .from("quiz_sessions")
         .select("*")
-        .eq("room_id", roomId)
+        .eq("room_id", activeRoomId)
         .eq("status", "active")
         .order("updated_at", { ascending: false })
         .limit(1)
@@ -27,7 +28,7 @@ export function useActiveQuiz(roomId: string | undefined) {
         const { data: lastEnded } = await supabase
           .from("quiz_sessions")
           .select("*")
-          .eq("room_id", roomId)
+          .eq("room_id", activeRoomId)
           .eq("status", "ended")
           .order("updated_at", { ascending: false })
           .limit(1)
@@ -41,14 +42,14 @@ export function useActiveQuiz(roomId: string | undefined) {
     load();
 
     const channel = supabase
-      .channel(`quiz:${roomId}`)
+      .channel(`quiz:${activeRoomId}`)
       .on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
           table: "quiz_sessions",
-          filter: `room_id=eq.${roomId}`,
+          filter: `room_id=eq.${activeRoomId}`,
         },
         (payload) => {
           const newSession = payload.new as QuizSession;
@@ -65,17 +66,20 @@ export function useActiveQuiz(roomId: string | undefined) {
   }, [roomId]);
 
   useEffect(() => {
-    if (!session?.id) {
+    const sessionId = session?.id;
+    if (!sessionId) {
       setAnswers([]);
       setRanking([]);
       return;
     }
 
+    const currentSessionId: string = sessionId;
+
     async function loadAnswers() {
       const { data } = await supabase
         .from("quiz_answers")
         .select("*")
-        .eq("session_id", session.id)
+        .eq("session_id", currentSessionId)
         .order("submitted_at", { ascending: true });
       setAnswers((data as QuizAnswer[]) || []);
     }
@@ -83,20 +87,20 @@ export function useActiveQuiz(roomId: string | undefined) {
     loadAnswers();
 
     const channel = supabase
-      .channel(`quiz-answers:${session.id}`)
+      .channel(`quiz-answers:${currentSessionId}`)
       .on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
           table: "quiz_answers",
-          filter: `session_id=eq.${session.id}`,
+          filter: `session_id=eq.${currentSessionId}`,
         },
         async () => {
           const { data } = await supabase
             .from("quiz_answers")
             .select("*")
-            .eq("session_id", session.id);
+            .eq("session_id", currentSessionId);
           setAnswers((data as QuizAnswer[]) || []);
         }
       )
@@ -109,14 +113,17 @@ export function useActiveQuiz(roomId: string | undefined) {
 
   // 랭킹: 같은 프로젝트 내의 모든 퀴즈 세션에서 점수(배점) 합산
   useEffect(() => {
-    if (!roomId || !session?.project_id) return;
+    const projectId = session?.project_id;
+    if (!roomId || !projectId) return;
+
+    const currentProjectId: string = projectId;
 
     async function loadRanking() {
       // 1. 해당 프로젝트의 모든 퀴즈 세션 가져오기
       const { data: sessions } = await supabase
         .from("quiz_sessions")
         .select("id, points")
-        .eq("project_id", session.project_id)
+        .eq("project_id", currentProjectId)
         .eq("status", "ended");
 
       if (!sessions?.length) {

@@ -41,7 +41,7 @@ export default function AdminQuiz({ roomId }: AdminQuizProps) {
       .select("*")
       .eq("id", roomId)
       .single();
-    if (data) setRoom(data);
+    if (data) setRoom(data as Room);
   }, [roomId]);
 
   const fetchProjects = useCallback(async () => {
@@ -84,7 +84,7 @@ export default function AdminQuiz({ roomId }: AdminQuizProps) {
       console.error("Error fetching quizzes:", error);
       return;
     }
-    setQuizzes(data || []);
+    setQuizzes((data || []) as unknown as QuizSession[]);
   }, []);
 
   useEffect(() => {

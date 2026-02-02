@@ -11,7 +11,7 @@ export interface Room {
   status: RoomStatus;
   current_program: ProgramType | null;
   room_show_logo_only: boolean;
-  room_show_qr_only: boolean;
+  room_show_qr_only: boolean | null;
   logo_url: string | null;
   quiz_project_id: string | null;
   quiz_phase: QuizPhase;

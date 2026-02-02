@@ -18,12 +18,13 @@ export function useRoomProgram(roomId: string | undefined) {
       setLoading(false);
       return;
     }
+    const activeRoomId = roomId;
 
     async function load() {
       const { data, error } = await supabase
         .from("rooms")
         .select("*")
-        .eq("id", roomId)
+        .eq("id", activeRoomId)
         .single();
       if (!error && data) setRoom(data as Room);
       setLoading(false);
@@ -32,14 +33,14 @@ export function useRoomProgram(roomId: string | undefined) {
     load();
 
     const channel = supabase
-      .channel(`room-program:${roomId}`)
+      .channel(`room-program:${activeRoomId}`)
       .on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
           table: "rooms",
-          filter: `id=eq.${roomId}`,
+          filter: `id=eq.${activeRoomId}`,
         },
         (payload) => {
           if (payload.new) setRoom(payload.new as Room);

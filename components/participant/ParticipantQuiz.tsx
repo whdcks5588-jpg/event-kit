@@ -28,11 +28,12 @@ export default function ParticipantQuiz({ roomId, participant, room }: Participa
   // 이미 제출했는지 확인
   useEffect(() => {
     if (session?.id) {
+      const sessionId = session.id;
       async function checkSubmission() {
         const { data } = await supabase
           .from("quiz_answers")
           .select("answer")
-          .eq("session_id", session.id)
+          .eq("session_id", sessionId)
           .eq("participant_id", participant.id)
           .maybeSingle();
         

@@ -16,4 +16,3 @@ CREATE POLICY "Public Access" ON storage.objects FOR SELECT USING (bucket_id = '
 CREATE POLICY "Allow All for logos" ON storage.objects FOR ALL 
 USING (bucket_id = 'logos') 
 WITH CHECK (bucket_id = 'logos');
-+

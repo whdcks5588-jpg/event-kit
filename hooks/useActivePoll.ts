@@ -11,12 +11,13 @@ export function useActivePoll(roomId: string | undefined) {
 
   useEffect(() => {
     if (!roomId) return;
+    const activeRoomId = roomId;
 
     async function load() {
       const { data } = await supabase
         .from("poll_sessions")
         .select("*")
-        .eq("room_id", roomId)
+        .eq("room_id", activeRoomId)
         .in("status", ["waiting", "active", "ended"])
         .order("created_at", { ascending: false })
         .limit(1)
@@ -27,14 +28,14 @@ export function useActivePoll(roomId: string | undefined) {
     load();
 
     const channel = supabase
-      .channel(`poll:${roomId}`)
+      .channel(`poll:${activeRoomId}`)
       .on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
           table: "poll_sessions",
-          filter: `room_id=eq.${roomId}`,
+          filter: `room_id=eq.${activeRoomId}`,
         },
         (payload) => {
           if (payload.new) setSession(payload.new as PollSession);
@@ -48,40 +49,43 @@ export function useActivePoll(roomId: string | undefined) {
   }, [roomId]);
 
   useEffect(() => {
-    if (!session?.id) {
+    const pollId = session?.id;
+    if (!pollId) {
       setVotes([]);
       setCounts([]);
       return;
     }
 
+    const currentPollId: string = pollId;
+
     async function loadVotes() {
       const { data } = await supabase
         .from("poll_votes")
         .select("*")
-        .eq("poll_id", session.id);
+        .eq("poll_id", currentPollId);
       const list = (data as PollVote[]) || [];
       setVotes(list);
-      const opts = (session.options as string[]) || [];
+      const opts = (session?.options as string[]) || [];
       setCounts(opts.map((_, i) => list.filter((v) => v.option_index === i).length));
     }
 
     loadVotes();
 
     const channel = supabase
-      .channel(`poll-votes:${session.id}`)
+      .channel(`poll-votes:${currentPollId}`)
       .on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
           table: "poll_votes",
-          filter: `poll_id=eq.${session.id}`,
+          filter: `poll_id=eq.${currentPollId}`,
         },
         async () => {
           const { data } = await supabase
             .from("poll_votes")
             .select("*")
-            .eq("poll_id", session.id);
+            .eq("poll_id", currentPollId);
           setVotes((data as PollVote[]) || []);
         }
       )
